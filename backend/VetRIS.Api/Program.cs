@@ -65,4 +65,12 @@ using (var scope = app.Services.CreateScope())
     db.Database.Migrate();
 }
 
+app.MapGet("/api/health", () =>
+{
+    return Results.Ok(new
+    {
+        status = "Healthy"
+    });
+});
+
 app.Run();
