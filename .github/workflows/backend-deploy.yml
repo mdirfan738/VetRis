@@ -1,0 +1,67 @@
+name: Backend Deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: vetris-dev-backend
+  APP_RUNNER_SERVICE_ARN: ${{ secrets.APP_RUNNER_SERVICE_ARN }}
+
+jobs:
+  build-and-deploy:
+    name: Build, Push, Deploy
+    runs-on: ubuntu-latest
+    environment: dev-backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build image
+        working-directory: backend
+        run: |
+          docker build -t $ECR_REPOSITORY:${{ github.sha }} -t $ECR_REPOSITORY:latest .
+
+      - name: Tag & push image
+        env:
+          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+        run: |
+          docker tag $ECR_REPOSITORY:${{ github.sha }} $REGISTRY/$ECR_REPOSITORY:${{ github.sha }}
+          docker tag $ECR_REPOSITORY:latest $REGISTRY/$ECR_REPOSITORY:latest
+          docker push $REGISTRY/$ECR_REPOSITORY:${{ github.sha }}
+          docker push $REGISTRY/$ECR_REPOSITORY:latest
+
+      - name: Trigger App Runner deployment
+        run: |
+          aws apprunner start-deployment --service-arn "$APP_RUNNER_SERVICE_ARN"
+
+      - name: Wait for App Runner to stabilize
+        run: |
+          for i in $(seq 1 30); do
+            STATUS=$(aws apprunner describe-service --service-arn "$APP_RUNNER_SERVICE_ARN" --query 'Service.Status' --output text)
+            echo "App Runner status: $STATUS"
+            if [ "$STATUS" = "RUNNING" ]; then
+              echo "Deployment stable."
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "Timed out waiting for App Runner to stabilize" >&2
+          exit 1

@@ -1,0 +1,57 @@
+:root {
+  --brand: #2c6e91;
+  --bg: #f7f9fb;
+  --card-bg: #ffffff;
+  --border: #e0e4e8;
+  --text: #1f2933;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.app-shell { max-width: 960px; margin: 0 auto; padding: 24px; }
+
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.app-header nav a { margin-left: 16px; color: var(--brand); text-decoration: none; font-weight: 600; }
+
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+input, button {
+  font-size: 14px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+button {
+  background: var(--brand);
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+
+button:disabled { opacity: 0.6; cursor: not-allowed; }
+
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 8px; border-bottom: 1px solid var(--border); }
+
+.status-ok { color: #227a3e; font-weight: 600; }
+.status-bad { color: #b3261e; font-weight: 600; }

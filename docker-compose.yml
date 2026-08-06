@@ -1,0 +1,59 @@
+# Local development stack for VetRIS-Scaffold.
+# NOT for production use — production runs on RDS + App Runner/ECS via Terraform.
+version: "3.9"
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: vetris-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: devpassword
+      MYSQL_DATABASE: vetris
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-pdevpassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: vetris-backend
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      DB_CONNECTION_STRING: "server=mysql;port=3306;database=vetris;user=root;password=devpassword"
+      ALLOWED_ORIGIN: "http://localhost:5173"
+      Aws__DicomActiveBucket: "vetris-dicom-active-dev"
+      # For local dev, provide your own AWS credentials with S3 access,
+      # e.g. via `aws configure` and mounting ~/.aws, or via env vars below.
+      AWS_ACCESS_KEY_ID: "${AWS_ACCESS_KEY_ID:-}"
+      AWS_SECRET_ACCESS_KEY: "${AWS_SECRET_ACCESS_KEY:-}"
+      AWS_REGION: "${AWS_REGION:-us-east-1}"
+    ports:
+      - "8080:8080"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: "http://localhost:8080"
+    container_name: vetris-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "5173:80"
+
+volumes:
+  mysql_data:

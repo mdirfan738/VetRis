@@ -1,0 +1,18 @@
+aws_region       = "us-east-1"
+environment      = "dev"
+azs              = ["us-east-1a", "us-east-1b"]
+
+domain_name      = "app.{{YOUR_DOMAIN}}"
+route53_zone_id  = "{{YOUR_ROUTE53_ZONE_ID}}"
+
+backend_allowed_origin = "https://app.{{YOUR_DOMAIN}}"
+
+github_org  = "{{YOUR_GITHUB_ORG}}"
+github_repo = "vetris-scaffold"
+
+# From the bootstrap step (README Step 1)
+tf_state_bucket_arn = "arn:aws:s3:::{{YOUR_TF_STATE_BUCKET}}"
+tf_lock_table_arn    = "arn:aws:dynamodb:us-east-1:{{YOUR_ACCOUNT_ID}}:table/{{YOUR_TF_LOCK_TABLE}}"
+
+db_instance_class = "db.t4g.small"
+multi_az           = false
