@@ -1,0 +1,58 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>VetRIS.Infrastructure</RootNamespace>
+    <AssemblyName>VetRIS.Infrastructure</AssemblyName>
+  </PropertyGroup>
+
+  <!--
+    net8.0 + MySQL here (not net9.0 / SQL Server, despite the original master
+    prompt) to match what's actually deployed: mdirfan738/VetRis's backend
+    project targets net8.0 and RDS MySQL via Pomelo. Keeping the same TFM and
+    provider means this project can slot into that repo's existing Dockerfile,
+    GitHub Actions build step, and Terraform-provisioned RDS instance without
+    changes to any of the three.
+  -->
+
+  <!--
+    NOTE: this sandbox has no NuGet access, so these versions could not be
+    restored or build-verified here. They're current stable releases as of
+    the .NET 8 wave - pin/bump them with `dotnet list package -outdated`
+    once you restore locally. fo-dicom in particular: the package itself
+    almost certainly restores fine, but Pacs/FoDicomPacsService.cs's exact
+    method calls against it are the lowest-confidence code in this solution
+    - see the caveat comment at the top of that file before trusting it
+    over fo-dicom's own samples.
+  -->
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.8" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.8">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="8.0.2" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0.8" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.2" />
+    <PackageReference Include="MediatR" Version="12.4.1" />
+    <PackageReference Include="Quartz.Extensions.Hosting" Version="3.13.1" />
+    <PackageReference Include="fo-dicom" Version="5.1.2" />
+    <PackageReference Include="AWSSDK.S3" Version="3.7.404.2" />
+    <PackageReference Include="AWSSDK.Extensions.NETCore.Setup" Version="3.7.301" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\VetRIS.Domain\VetRIS.Domain.csproj" />
+    <ProjectReference Include="..\VetRIS.Application\VetRIS.Application.csproj" />
+  </ItemGroup>
+
+</Project>

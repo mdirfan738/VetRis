@@ -11,7 +11,13 @@ output "cloudfront_distribution_id" {
 }
 
 output "backend_api_url" {
-  value = module.backend.app_runner_service_url
+  value = module.backend.api_url
+}
+
+output "db_master_password" {
+  value       = module.security.db_master_password
+  sensitive   = true
+  description = "Fixed value (AdminAdmin) per explicit requirement — retrieve with: terraform output -raw db_master_password"
 }
 
 output "ecr_repository_url" {

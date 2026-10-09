@@ -1,98 +1,95 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using VetRIS.Api.Data;
-using VetRIS.Api.Dtos;
-using VetRIS.Api.Models;
-using VetRIS.Api.Services;
+using VetRIS.Application.Studies;
+using VetRIS.Application.Studies.Commands;
+using VetRIS.Application.Studies.Queries;
 
 namespace VetRIS.Api.Controllers;
 
-[ApiController]
-[Route("api/[controller]")]
-public class StudiesController : ControllerBase
+[Authorize]
+public class StudiesController : ApiControllerBase
 {
-    private readonly VetrisDbContext _db;
-    private readonly IS3UploadService _s3UploadService;
-    private readonly ILogger<StudiesController> _logger;
-
-    // 200 MB cap for scaffold purposes; tune per real DICOM series sizes.
-    private const long MaxUploadBytes = 200L * 1024 * 1024;
-
-    public StudiesController(VetrisDbContext db, IS3UploadService s3UploadService, ILogger<StudiesController> logger)
+    [HttpPost]
+    [Authorize(Roles = "ClinicUser,Technician,HospitalAdmin,SuperAdmin")]
+    public async Task<ActionResult<StudyDto>> Create(CreateStudyCommand command, CancellationToken ct)
     {
-        _db = db;
-        _s3UploadService = s3UploadService;
-        _logger = logger;
+        var result = await Mediator.Send(command, ct);
+        return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
     }
+
+    [HttpGet("{id:guid}")]
+    public async Task<ActionResult<StudyDto>> GetById(Guid id, CancellationToken ct) =>
+        Ok(await Mediator.Send(new GetStudyByIdQuery(id), ct));
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<StudyResponse>>> GetAll(CancellationToken ct)
+    public async Task<ActionResult> GetList([FromQuery] GetStudiesQuery query, CancellationToken ct) =>
+        Ok(await Mediator.Send(query, ct));
+
+    [HttpGet("worklist/{radiologistId:guid}")]
+    [Authorize(Roles = "Radiologist,HospitalAdmin,SuperAdmin")]
+    public async Task<ActionResult> GetWorklist(Guid radiologistId, CancellationToken ct) =>
+        Ok(await Mediator.Send(new GetRadiologistWorklistQuery(radiologistId), ct));
+
+    public record AssignRadiologistBody(Guid RadiologistId);
+
+    [HttpPost("{id:guid}/assign-radiologist")]
+    [Authorize(Roles = "HospitalAdmin,SuperAdmin,Technician")]
+    public async Task<ActionResult<StudyDto>> AssignRadiologist(Guid id, AssignRadiologistBody body, CancellationToken ct) =>
+        Ok(await Mediator.Send(new AssignRadiologistCommand { StudyId = id, RadiologistId = body.RadiologistId, ChangedBy = CurrentUser.UserId }, ct));
+
+    [HttpPost("{id:guid}/start-review")]
+    [Authorize(Roles = "Radiologist,SuperAdmin")]
+    public async Task<ActionResult<StudyDto>> StartReview(Guid id, CancellationToken ct) =>
+        Ok(await Mediator.Send(new StartReviewCommand { StudyId = id, ChangedBy = CurrentUser.UserId }, ct));
+
+    [HttpPost("{id:guid}/flag-review-required")]
+    [Authorize(Roles = "Radiologist,SuperAdmin")]
+    public async Task<ActionResult<StudyDto>> FlagReviewRequired(Guid id, CancellationToken ct) =>
+        Ok(await Mediator.Send(new FlagReviewRequiredCommand { StudyId = id, ChangedBy = CurrentUser.UserId }, ct));
+
+    public record ReasonBody(string Reason);
+
+    [HttpPost("{id:guid}/require-action")]
+    [Authorize(Roles = "Radiologist,SuperAdmin")]
+    public async Task<ActionResult<StudyDto>> RequireAction(Guid id, ReasonBody body, CancellationToken ct) =>
+        Ok(await Mediator.Send(new RequireActionCommand { StudyId = id, Reason = body.Reason, ChangedBy = CurrentUser.UserId }, ct));
+
+    [HttpPost("{id:guid}/mark-report-generated")]
+    [Authorize(Roles = "Radiologist,SuperAdmin")]
+    public async Task<ActionResult<StudyDto>> MarkReportGenerated(Guid id, CancellationToken ct) =>
+        Ok(await Mediator.Send(new MarkReportGeneratedCommand { StudyId = id, ChangedBy = CurrentUser.UserId }, ct));
+
+    [HttpPost("{id:guid}/mark-written-back")]
+    [Authorize(Roles = "SuperAdmin,HospitalAdmin")]
+    public async Task<ActionResult<StudyDto>> MarkWrittenBack(Guid id, CancellationToken ct) =>
+        Ok(await Mediator.Send(new MarkWrittenBackCommand { StudyId = id, ChangedBy = CurrentUser.UserId }, ct));
+
+    [HttpPost("{id:guid}/mark-distributed")]
+    [Authorize(Roles = "SuperAdmin,HospitalAdmin")]
+    public async Task<ActionResult<StudyDto>> MarkDistributed(Guid id, CancellationToken ct) =>
+        Ok(await Mediator.Send(new MarkDistributedCommand { StudyId = id, ChangedBy = CurrentUser.UserId }, ct));
+
+    [HttpPost("{id:guid}/finalize")]
+    [Authorize(Roles = "SuperAdmin,HospitalAdmin")]
+    public async Task<ActionResult<StudyDto>> FinalizeStudy(Guid id, CancellationToken ct) =>
+        Ok(await Mediator.Send(new MarkFinalizedCommand { StudyId = id, ChangedBy = CurrentUser.UserId }, ct));
+
+    [HttpPost("{id:guid}/archive")]
+    [Authorize(Roles = "SuperAdmin,HospitalAdmin")]
+    public async Task<ActionResult<StudyDto>> Archive(Guid id, CancellationToken ct) =>
+        Ok(await Mediator.Send(new ArchiveStudyCommand { StudyId = id, ChangedBy = CurrentUser.UserId }, ct));
+
+    [HttpPost("{id:guid}/cancel")]
+    [Authorize(Roles = "SuperAdmin,HospitalAdmin")]
+    public async Task<ActionResult<StudyDto>> Cancel(Guid id, ReasonBody body, CancellationToken ct) =>
+        Ok(await Mediator.Send(new CancelStudyCommand { StudyId = id, Reason = body.Reason, ChangedBy = CurrentUser.UserId }, ct));
+
+    public record CommentBody(string Comment);
+
+    [HttpPost("{id:guid}/comments")]
+    public async Task<ActionResult> AddComment(Guid id, CommentBody body, CancellationToken ct)
     {
-        var studies = await _db.Studies
-            .OrderByDescending(s => s.CreatedAtUtc)
-            .Select(s => new StudyResponse(s.Id, s.PatientId, s.StudyDate, s.S3Key, s.Status, s.CreatedAtUtc))
-            .ToListAsync(ct);
-
-        return Ok(studies);
-    }
-
-    [HttpGet("{id:int}")]
-    public async Task<ActionResult<StudyResponse>> GetById(int id, CancellationToken ct)
-    {
-        var study = await _db.Studies.FindAsync([id], ct);
-        if (study is null) return NotFound();
-
-        return Ok(new StudyResponse(study.Id, study.PatientId, study.StudyDate, study.S3Key, study.Status, study.CreatedAtUtc));
-    }
-
-    [HttpPost]
-    public async Task<ActionResult<StudyResponse>> Create([FromBody] CreateStudyRequest request, CancellationToken ct)
-    {
-        var study = new Study
-        {
-            PatientId = request.PatientId,
-            StudyDate = request.StudyDate,
-            S3Key = request.S3Key,
-            Status = "Received"
-        };
-
-        _db.Studies.Add(study);
-        await _db.SaveChangesAsync(ct);
-
-        return CreatedAtAction(nameof(GetById), new { id = study.Id },
-            new StudyResponse(study.Id, study.PatientId, study.StudyDate, study.S3Key, study.Status, study.CreatedAtUtc));
-    }
-
-    // POST /api/studies/upload — multipart/form-data with "file" and "patientId"
-    [HttpPost("upload")]
-    [RequestSizeLimit(MaxUploadBytes)]
-    public async Task<ActionResult<StudyResponse>> Upload([FromForm] IFormFile file, [FromForm] string patientId, CancellationToken ct)
-    {
-        if (file is null || file.Length == 0)
-            return BadRequest(new { message = "A non-empty 'file' form field is required." });
-
-        if (string.IsNullOrWhiteSpace(patientId))
-            return BadRequest(new { message = "'patientId' form field is required." });
-
-        await using var stream = file.OpenReadStream();
-        var s3Key = await _s3UploadService.UploadAsync(stream, file.FileName, file.ContentType, ct);
-
-        var study = new Study
-        {
-            PatientId = patientId,
-            StudyDate = DateTime.UtcNow,
-            S3Key = s3Key,
-            Status = "Received"
-        };
-
-        _db.Studies.Add(study);
-        await _db.SaveChangesAsync(ct);
-
-        _logger.LogInformation("Created study {StudyId} for patient {PatientId}", study.Id, study.PatientId);
-
-        return CreatedAtAction(nameof(GetById), new { id = study.Id },
-            new StudyResponse(study.Id, study.PatientId, study.StudyDate, study.S3Key, study.Status, study.CreatedAtUtc));
+        await Mediator.Send(new AddStudyCommentCommand { StudyId = id, UserId = CurrentUser.UserId ?? "unknown", Comment = body.Comment }, ct);
+        return NoContent();
     }
 }
-
-public record CreateStudyRequest(string PatientId, DateTime StudyDate, string S3Key);

@@ -1,18 +1,29 @@
 variable "project" {
-  type    = string
-  default = "VetRIS"
+  type = string
 }
 
 variable "environment" {
   type = string
 }
 
+variable "vpc_id" {
+  type        = string
+  description = "From module.network.vpc_id"
+}
+
+variable "public_subnet_ids" {
+  type        = list(string)
+  description = "For the ALB — from module.network.public_subnet_ids"
+}
+
 variable "private_subnet_ids" {
-  type = list(string)
+  type        = list(string)
+  description = "For the ECS tasks — from module.network.private_subnet_ids"
 }
 
 variable "backend_security_group_id" {
-  type = string
+  type        = string
+  description = "From module.network.backend_security_group_id — this module adds the ALB-ingress rule to it"
 }
 
 variable "kms_key_arn" {
@@ -32,7 +43,8 @@ variable "db_master_username" {
 }
 
 variable "db_master_secret_arn" {
-  type = string
+  type        = string
+  description = "Secrets Manager ARN holding the fixed DB password (see modules/security)"
 }
 
 variable "dicom_active_bucket_name" {
@@ -44,33 +56,69 @@ variable "dicom_active_bucket_arn" {
 }
 
 variable "allowed_origin" {
-  type        = string
-  description = "CORS origin allowed to call the API, e.g. https://app.example.com"
-}
-
-variable "cpu" {
-  type    = string
-  default = "1 vCPU"
-}
-
-variable "memory" {
-  type    = string
-  default = "2 GB"
-}
-
-variable "min_size" {
-  type    = number
-  default = 1
-}
-
-variable "max_size" {
-  type    = number
-  description = "Max concurrent App Runner instances (scaling plan lever)"
-  default = 5
+  type = string
 }
 
 variable "log_group_name" {
   type = string
+}
+
+variable "api_domain_name" {
+  type        = string
+  description = "Full backend API domain, e.g. api.{{YOUR_DOMAIN}} — same 'already-full-hostname' convention as the frontend module's domain_name, not a root domain this module derives a subdomain from"
+}
+
+variable "route53_zone_id" {
+  type = string
+}
+
+variable "container_port" {
+  type    = number
+  default = 8080
+}
+
+variable "task_cpu" {
+  type        = number
+  default     = 512
+  description = "vCPU units (256 = .25 vCPU); 512 = .5 vCPU is a reasonable dev default"
+}
+
+variable "task_memory" {
+  type    = number
+  default = 1024
+}
+
+variable "desired_count" {
+  type    = number
+  default = 1
+}
+
+variable "min_capacity" {
+  type    = number
+  default = 1
+}
+
+variable "max_capacity" {
+  type    = number
+  default = 3
+}
+
+variable "pacs_host" {
+  type    = string
+  default = ""
+}
+
+variable "admin_username" {
+  type        = string
+  default     = "Admin"
+  description = "Fixed per explicit requirement — see README.md's Security Practices section for the lab-vs-production tradeoff this implies"
+}
+
+variable "admin_password" {
+  type        = string
+  default     = "Admin"
+  sensitive   = true
+  description = "Fixed per explicit requirement. The app's Identity password policy is relaxed specifically to accept this — see backend/VetRIS.Api/Program.cs"
 }
 
 variable "tags" {

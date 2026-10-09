@@ -1,0 +1,23 @@
+{
+  "name": "y",
+  "version": "1.0.0",
+  "description": "A hands-on, start-to-finish guide for deploying VetRIS (Radiology Information System + PACS integration) from a completely fresh machine to a running application, on AWS, with nothing skipped and nothing assumed.",
+  "homepage": "https://github.com/mdirfan738/VetRis#readme",
+  "bugs": {
+    "url": "https://github.com/mdirfan738/VetRis/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mdirfan738/VetRis.git"
+  },
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  }
+}

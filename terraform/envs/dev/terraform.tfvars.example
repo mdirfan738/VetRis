@@ -3,6 +3,7 @@ environment      = "dev"
 azs              = ["us-east-1a", "us-east-1b"]
 
 domain_name      = "app.{{YOUR_DOMAIN}}"
+api_domain_name  = "api.{{YOUR_DOMAIN}}"
 route53_zone_id  = "{{YOUR_ROUTE53_ZONE_ID}}"
 
 backend_allowed_origin = "https://app.{{YOUR_DOMAIN}}"

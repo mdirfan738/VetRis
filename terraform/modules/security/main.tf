@@ -36,8 +36,8 @@ resource "aws_cloudwatch_log_group" "backend" {
   tags = local.common_tags
 }
 
-resource "aws_cloudwatch_log_group" "app_runner" {
-  name              = "/vetris/${var.environment}/apprunner"
+resource "aws_cloudwatch_log_group" "backend_ecs" {
+  name              = "/vetris/${var.environment}/backend-ecs"
   retention_in_days = 90
   kms_key_id        = aws_kms_key.vetris.arn
 
@@ -45,11 +45,13 @@ resource "aws_cloudwatch_log_group" "app_runner" {
 }
 
 # ---- Secrets Manager: DB master password ----
-resource "random_password" "db_master" {
-  length      = 32
-  special     = true
-  # RDS-safe special character set
-  override_special = "!#$%&*()-_=+[]{}<>:?"
+# Fixed value per explicit requirement (not randomly generated like the
+# JWT key below) — RDS MySQL requires 8+ characters, so "AdminAdmin" is
+# the smallest change from the literal "Admin" that's actually accepted by
+# the platform. See README.md's Security Practices section for the
+# lab-vs-production tradeoff this implies.
+locals {
+  db_master_password_fixed = "AdminAdmin"
 }
 
 resource "aws_secretsmanager_secret" "db_master" {
@@ -62,7 +64,7 @@ resource "aws_secretsmanager_secret" "db_master" {
 
 resource "aws_secretsmanager_secret_version" "db_master" {
   secret_id     = aws_secretsmanager_secret.db_master.id
-  secret_string = random_password.db_master.result
+  secret_string = local.db_master_password_fixed
 }
 
 # ---- WAFv2 WebACL for CloudFront (must be created in us-east-1) ----

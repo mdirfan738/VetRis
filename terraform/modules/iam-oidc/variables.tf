@@ -35,7 +35,19 @@ variable "cloudfront_distribution_arn" {
   type = string
 }
 
-variable "app_runner_service_arn" {
+variable "ecs_cluster_arn" {
+  type = string
+}
+
+variable "ecs_service_arn" {
+  type = string
+}
+
+variable "ecs_execution_role_arn" {
+  type = string
+}
+
+variable "ecs_task_role_arn" {
   type = string
 }
 

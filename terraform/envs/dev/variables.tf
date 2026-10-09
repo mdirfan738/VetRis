@@ -19,6 +19,12 @@ variable "domain_name" {
   default     = "app.{{YOUR_DOMAIN}}"
 }
 
+variable "api_domain_name" {
+  type        = string
+  description = "Full backend API domain, e.g. api.{{YOUR_DOMAIN}}"
+  default     = "api.{{YOUR_DOMAIN}}"
+}
+
 variable "route53_zone_id" {
   type        = string
   description = "Existing Route53 hosted zone id for {{YOUR_DOMAIN}}"

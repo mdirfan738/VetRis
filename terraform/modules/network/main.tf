@@ -103,12 +103,12 @@ resource "aws_route_table_association" "private" {
 # Security Groups
 # ---------------------------------------------------------------------------
 
-# Backend compute (App Runner VPC connector / ECS tasks) egress-only by default,
-# ingress restricted to what's needed (App Runner reaches it via VPC connector,
+# Backend compute (ECS tasks) egress-only by default,
+# ingress restricted to what's needed (the backend module adds the ALB->ECS rule,
 # so no inbound rule from the internet is required here).
 resource "aws_security_group" "backend" {
   name_prefix = "${var.project}-${var.environment}-backend-"
-  description = "SG for VetRIS backend compute (App Runner connector / ECS tasks)"
+  description = "SG for VetRIS backend compute (ECS tasks)"
   vpc_id      = aws_vpc.this.id
 
   egress {

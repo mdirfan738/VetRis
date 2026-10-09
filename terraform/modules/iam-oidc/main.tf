@@ -6,7 +6,7 @@
 #  - THREE separate least-privilege roles, one per pipeline:
 #      1. infra-cicd   -> terraform plan/apply (broad within the project's
 #                         resource types, still scoped by tags/ARNs where possible)
-#      2. backend-cicd -> push to ECR + deploy App Runner service
+#      2. backend-cicd -> push to ECR + deploy to ECS
 #      3. frontend-cicd-> sync to S3 + invalidate CloudFront
 #
 # Each role trust policy is restricted to this specific GitHub repo and to
@@ -97,7 +97,7 @@ data "aws_iam_policy_document" "infra_permissions" {
     actions = [
       "ec2:*", "rds:*", "s3:*", "cloudfront:*", "route53:*", "acm:*",
       "wafv2:*", "kms:*", "secretsmanager:*", "logs:*", "ecr:*",
-      "apprunner:*", "iam:GetRole", "iam:PassRole", "iam:CreateRole",
+      "ecs:*", "elasticloadbalancing:*", "application-autoscaling:*", "iam:GetRole", "iam:PassRole", "iam:CreateRole",
       "iam:DeleteRole", "iam:AttachRolePolicy", "iam:DetachRolePolicy",
       "iam:PutRolePolicy", "iam:DeleteRolePolicy", "iam:TagRole",
       "iam:ListRolePolicies", "iam:ListAttachedRolePolicies",
@@ -132,7 +132,7 @@ resource "aws_iam_role_policy" "infra_cicd" {
 }
 
 # ---------------------------------------------------------------------------
-# 2. Backend pipeline role: build/push to ECR + deploy App Runner
+# 2. Backend pipeline role: build/push to ECR + deploy to ECS
 # ---------------------------------------------------------------------------
 resource "aws_iam_role" "backend_cicd" {
   name               = "${lower(var.project)}-${var.environment}-backend-cicd"
@@ -160,10 +160,34 @@ data "aws_iam_policy_document" "backend_permissions" {
   }
 
   statement {
-    sid       = "DeployAppRunner"
+    sid    = "DeployEcs"
+    effect = "Allow"
+    actions = [
+      "ecs:UpdateService", "ecs:DescribeServices", "ecs:DescribeTaskDefinition",
+    ]
+    resources = [var.ecs_service_arn, var.ecs_cluster_arn]
+  }
+
+  statement {
+    sid    = "RegisterTaskDefinition"
+    effect = "Allow"
+    actions = ["ecs:RegisterTaskDefinition"]
+    # RegisterTaskDefinition doesn't support resource-level permissions —
+    # every new revision gets a new ARN that doesn't exist until this call
+    # succeeds, so AWS requires Resource "*" here.
+    resources = ["*"]
+  }
+
+  statement {
+    sid       = "PassEcsRoles"
     effect    = "Allow"
-    actions   = ["apprunner:StartDeployment", "apprunner:DescribeService"]
-    resources = [var.app_runner_service_arn]
+    actions   = ["iam:PassRole"]
+    resources = [var.ecs_execution_role_arn, var.ecs_task_role_arn]
+    condition {
+      test     = "StringEquals"
+      variable = "iam:PassedToService"
+      values   = ["ecs-tasks.amazonaws.com"]
+    }
   }
 }
 

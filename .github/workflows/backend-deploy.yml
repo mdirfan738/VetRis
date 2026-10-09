@@ -1,8 +1,18 @@
 name: Backend Deploy
 
+# Deploys to ECS Fargate + an Application Load Balancer.
+#
+# Diff from the previous version of this workflow: build/push steps are
+# unchanged (same ECR repo, same Dockerfile location); "trigger deployment"
+# is replaced with registering a new ECS task definition revision (pointing
+# at the new image) and updating the service to use it, then waiting for
+# the service — not just the deploy call — to report stable. Also added: a
+# database migration step (the previous workflow never had one) and a
+# smoke test against the real domain.
+
 on:
   push:
-    branches: [main]
+    branches: [master]
     paths:
       - "backend/**"
   workflow_dispatch: {}
@@ -14,11 +24,14 @@ permissions:
 env:
   AWS_REGION: us-east-1
   ECR_REPOSITORY: vetris-dev-backend
-  APP_RUNNER_SERVICE_ARN: ${{ secrets.APP_RUNNER_SERVICE_ARN }}
+  ECS_CLUSTER: ${{ secrets.ECS_CLUSTER_NAME }}
+  ECS_SERVICE: ${{ secrets.ECS_SERVICE_NAME }}
+  ECS_TASK_FAMILY: ${{ secrets.ECS_TASK_FAMILY }}
+  CONTAINER_NAME: backend
 
 jobs:
   build-and-deploy:
-    name: Build, Push, Deploy
+    name: Build, Push, Migrate, Deploy, Smoke Test
     runs-on: ubuntu-latest
     environment: dev-backend
     steps:
@@ -40,6 +53,7 @@ jobs:
           docker build -t $ECR_REPOSITORY:${{ github.sha }} -t $ECR_REPOSITORY:latest .
 
       - name: Tag & push image
+        id: push
         env:
           REGISTRY: ${{ steps.ecr-login.outputs.registry }}
         run: |
@@ -47,21 +61,53 @@ jobs:
           docker tag $ECR_REPOSITORY:latest $REGISTRY/$ECR_REPOSITORY:latest
           docker push $REGISTRY/$ECR_REPOSITORY:${{ github.sha }}
           docker push $REGISTRY/$ECR_REPOSITORY:latest
+          echo "image=$REGISTRY/$ECR_REPOSITORY:${{ github.sha }}" >> "$GITHUB_OUTPUT"
 
-      - name: Trigger App Runner deployment
+      - name: Apply database migrations
+        # Needs network access to RDS — see docker/TERRAFORM-GAPS.md's
+        # network note if this job can't reach it directly (private-subnet
+        # RDS typically needs a VPC-connected runner or a tunnel).
+        working-directory: backend
+        env:
+          VETRIS_DB_CONNECTION: ${{ secrets.VETRIS_DB_CONNECTION }}
         run: |
-          aws apprunner start-deployment --service-arn "$APP_RUNNER_SERVICE_ARN"
+          docker run --rm \
+            -e VETRIS_DB_CONNECTION \
+            -v "$PWD":/src -w /src/VetRIS.Api \
+            mcr.microsoft.com/dotnet/sdk:8.0 \
+            bash -c "dotnet tool install --global dotnet-ef && \
+                     export PATH=\"\$PATH:/root/.dotnet/tools\" && \
+                     dotnet ef database update --project ../VetRIS.Infrastructure --startup-project ."
 
-      - name: Wait for App Runner to stabilize
+      - name: Download current task definition
         run: |
-          for i in $(seq 1 30); do
-            STATUS=$(aws apprunner describe-service --service-arn "$APP_RUNNER_SERVICE_ARN" --query 'Service.Status' --output text)
-            echo "App Runner status: $STATUS"
-            if [ "$STATUS" = "RUNNING" ]; then
-              echo "Deployment stable."
+          aws ecs describe-task-definition --task-definition "$ECS_TASK_FAMILY" \
+            --query taskDefinition > task-definition.json
+
+      - name: Render new task definition with the freshly pushed image
+        id: render-task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          container-name: ${{ env.CONTAINER_NAME }}
+          image: ${{ steps.push.outputs.image }}
+
+      - name: Deploy to ECS (register new revision, update service, wait for stable)
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.render-task-def.outputs.task-definition }}
+          service: ${{ env.ECS_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
+
+      - name: Smoke test
+        run: |
+          for i in $(seq 1 10); do
+            if curl -sf "https://api.alua2kg.online/api/health"; then
+              echo "Smoke test passed."
               exit 0
             fi
-            sleep 15
+            sleep 6
           done
-          echo "Timed out waiting for App Runner to stabilize" >&2
+          echo "::error::Smoke test failed — /api/health never returned 200 after deploy." >&2
           exit 1

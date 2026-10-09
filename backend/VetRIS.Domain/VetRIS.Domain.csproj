@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>VetRIS.Domain</RootNamespace>
+    <AssemblyName>VetRIS.Domain</AssemblyName>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <!--
+    Intentionally no PackageReference entries. In Clean/Onion Architecture the
+    Domain layer sits at the center of the dependency graph and must not
+    reference EF Core, MediatR, ASP.NET Identity, or any infrastructure
+    concern — Application and Infrastructure depend on Domain, never the
+    reverse. Persistence mapping (Fluent API, [NotMapped]-equivalents, value
+    object conversions) belongs in VetRIS.Infrastructure, added next.
+  -->
+
+</Project>

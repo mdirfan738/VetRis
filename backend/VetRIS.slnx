@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="VetRIS.Api/VetRIS.Api.csproj" />
+  <Project Path="VetRIS.Application/VetRIS.Application.csproj" />
+  <Project Path="VetRIS.Domain/VetRIS.Domain.csproj" />
+</Solution>

@@ -1,0 +1,57 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VetRIS.Domain", "backend\VetRIS.Domain\VetRIS.Domain.csproj", "{220FE24E-8944-438A-BA51-AF56FFB876BD}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VetRIS.Application", "backend\VetRIS.Application\VetRIS.Application.csproj", "{BEE09EA2-6E47-4939-8ACF-4BCECC7873C3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VetRIS.Infrastructure", "backend\VetRIS.Infrastructure\VetRIS.Infrastructure.csproj", "{CAF58F4C-64AC-4752-9AC4-754693C3EE56}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VetRIS.Api", "backend\VetRIS.Api\VetRIS.Api.csproj", "{D94B9268-7A3F-4B1A-8503-FD69EF52D8C5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VetRIS.Domain.UnitTests", "tests\VetRIS.Domain.UnitTests\VetRIS.Domain.UnitTests.csproj", "{579CFC5B-8253-44E8-8F60-F44B0AAE6142}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VetRIS.Application.UnitTests", "tests\VetRIS.Application.UnitTests\VetRIS.Application.UnitTests.csproj", "{B37E57B1-E37D-4603-9511-36A7F82771E6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VetRIS.Api.IntegrationTests", "tests\VetRIS.Api.IntegrationTests\VetRIS.Api.IntegrationTests.csproj", "{8F2E189A-D3CF-4920-9DC2-1908B0251E70}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{220FE24E-8944-438A-BA51-AF56FFB876BD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{220FE24E-8944-438A-BA51-AF56FFB876BD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{220FE24E-8944-438A-BA51-AF56FFB876BD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{220FE24E-8944-438A-BA51-AF56FFB876BD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BEE09EA2-6E47-4939-8ACF-4BCECC7873C3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BEE09EA2-6E47-4939-8ACF-4BCECC7873C3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BEE09EA2-6E47-4939-8ACF-4BCECC7873C3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BEE09EA2-6E47-4939-8ACF-4BCECC7873C3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CAF58F4C-64AC-4752-9AC4-754693C3EE56}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CAF58F4C-64AC-4752-9AC4-754693C3EE56}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CAF58F4C-64AC-4752-9AC4-754693C3EE56}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CAF58F4C-64AC-4752-9AC4-754693C3EE56}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D94B9268-7A3F-4B1A-8503-FD69EF52D8C5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D94B9268-7A3F-4B1A-8503-FD69EF52D8C5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D94B9268-7A3F-4B1A-8503-FD69EF52D8C5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D94B9268-7A3F-4B1A-8503-FD69EF52D8C5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{579CFC5B-8253-44E8-8F60-F44B0AAE6142}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{579CFC5B-8253-44E8-8F60-F44B0AAE6142}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{579CFC5B-8253-44E8-8F60-F44B0AAE6142}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{579CFC5B-8253-44E8-8F60-F44B0AAE6142}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B37E57B1-E37D-4603-9511-36A7F82771E6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B37E57B1-E37D-4603-9511-36A7F82771E6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B37E57B1-E37D-4603-9511-36A7F82771E6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B37E57B1-E37D-4603-9511-36A7F82771E6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8F2E189A-D3CF-4920-9DC2-1908B0251E70}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8F2E189A-D3CF-4920-9DC2-1908B0251E70}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8F2E189A-D3CF-4920-9DC2-1908B0251E70}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8F2E189A-D3CF-4920-9DC2-1908B0251E70}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

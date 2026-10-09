@@ -11,7 +11,7 @@ output "db_master_secret_arn" {
 }
 
 output "db_master_password" {
-  value     = random_password.db_master.result
+  value     = local.db_master_password_fixed
   sensitive = true
 }
 

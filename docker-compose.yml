@@ -1,5 +1,7 @@
-# Local development stack for VetRIS-Scaffold.
-# NOT for production use — production runs on RDS + App Runner/ECS via Terraform.
+# Local development stack for VetRIS.
+# NOT for production use — production runs on RDS + ECS Fargate via Terraform.
+# Schema is created by EF Core migrations (`dotnet ef database update`),
+# not a SQL init script — matches how the AWS-deployed database is handled.
 version: "3.9"
 
 services:
@@ -8,15 +10,16 @@ services:
     container_name: vetris-mysql
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: devpassword
+      MYSQL_ROOT_PASSWORD: AdminAdmin
       MYSQL_DATABASE: vetris
+      MYSQL_USER: Admin
+      MYSQL_PASSWORD: AdminAdmin
     ports:
       - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-pdevpassword"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-pAdminAdmin"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -31,7 +34,7 @@ services:
       mysql:
         condition: service_healthy
     environment:
-      DB_CONNECTION_STRING: "server=mysql;port=3306;database=vetris;user=root;password=devpassword"
+      DB_CONNECTION_STRING: "server=mysql;port=3306;database=vetris;user=Admin;password=AdminAdmin"
       ALLOWED_ORIGIN: "http://localhost:5173"
       Aws__DicomActiveBucket: "vetris-dicom-active-dev"
       # For local dev, provide your own AWS credentials with S3 access,
@@ -39,6 +42,14 @@ services:
       AWS_ACCESS_KEY_ID: "${AWS_ACCESS_KEY_ID:-}"
       AWS_SECRET_ACCESS_KEY: "${AWS_SECRET_ACCESS_KEY:-}"
       AWS_REGION: "${AWS_REGION:-us-east-1}"
+      Jwt__Issuer: "https://api.alua2kg.online"
+      Jwt__Audience: "VetRIS.Clients"
+      Jwt__Key: "${VETRIS_DEV_JWT_KEY:-local-development-only-signing-key-replace-me-32-chars-min}"
+      Jwt__ExpiryMinutes: "480"
+      Pacs__Host: "${VETRIS_DEV_PACS_HOST:-localhost}"
+      Pacs__Port: "11112"
+      VETRIS_ADMIN_USERNAME: "Admin"
+      VETRIS_ADMIN_PASSWORD: "Admin"
     ports:
       - "8080:8080"
 
