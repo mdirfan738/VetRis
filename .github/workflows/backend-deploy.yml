@@ -1,21 +1,12 @@
-name: Backend Deploy
 
-# Deploys to ECS Fargate + an Application Load Balancer.
-#
-# Diff from the previous version of this workflow: build/push steps are
-# unchanged (same ECR repo, same Dockerfile location); "trigger deployment"
-# is replaced with registering a new ECS task definition revision (pointing
-# at the new image) and updating the service to use it, then waiting for
-# the service — not just the deploy call — to report stable. Also added: a
-# database migration step (the previous workflow never had one) and a
-# smoke test against the real domain.
+name: Backend Deploy
 
 on:
   push:
-    branches: [master]
-    paths:
-      - "backend/**"
-  workflow_dispatch: {}
+    branches:
+      - master
+
+  workflow_dispatch:
 
 permissions:
   id-token: write
@@ -34,8 +25,10 @@ jobs:
     name: Build, Push, Migrate, Deploy, Smoke Test
     runs-on: ubuntu-latest
     environment: dev-backend
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout source code
+        uses: actions/checkout@v4
 
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
@@ -43,48 +36,60 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Login to ECR
+      - name: Login to Amazon ECR
         id: ecr-login
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build image
+      - name: Build Docker image
         working-directory: backend
         run: |
-          docker build -t $ECR_REPOSITORY:${{ github.sha }} -t $ECR_REPOSITORY:latest .
+          docker build \
+            -t "$ECR_REPOSITORY:${{ github.sha }}" \
+            -t "$ECR_REPOSITORY:latest" .
 
-      - name: Tag & push image
+      - name: Tag and push Docker image
         id: push
         env:
           REGISTRY: ${{ steps.ecr-login.outputs.registry }}
         run: |
-          docker tag $ECR_REPOSITORY:${{ github.sha }} $REGISTRY/$ECR_REPOSITORY:${{ github.sha }}
-          docker tag $ECR_REPOSITORY:latest $REGISTRY/$ECR_REPOSITORY:latest
-          docker push $REGISTRY/$ECR_REPOSITORY:${{ github.sha }}
-          docker push $REGISTRY/$ECR_REPOSITORY:latest
-          echo "image=$REGISTRY/$ECR_REPOSITORY:${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          docker tag "$ECR_REPOSITORY:${{ github.sha }}" \
+            "$REGISTRY/$ECR_REPOSITORY:${{ github.sha }}"
+
+          docker tag "$ECR_REPOSITORY:latest" \
+            "$REGISTRY/$ECR_REPOSITORY:latest"
+
+          docker push "$REGISTRY/$ECR_REPOSITORY:${{ github.sha }}"
+          docker push "$REGISTRY/$ECR_REPOSITORY:latest"
+
+          echo "image=$REGISTRY/$ECR_REPOSITORY:${{ github.sha }}" \
+            >> "$GITHUB_OUTPUT"
 
       - name: Apply database migrations
-        # Needs network access to RDS — see docker/TERRAFORM-GAPS.md's
-        # network note if this job can't reach it directly (private-subnet
-        # RDS typically needs a VPC-connected runner or a tunnel).
         working-directory: backend
         env:
           VETRIS_DB_CONNECTION: ${{ secrets.VETRIS_DB_CONNECTION }}
         run: |
           docker run --rm \
             -e VETRIS_DB_CONNECTION \
-            -v "$PWD":/src -w /src/VetRIS.Api \
+            -v "$PWD":/src \
+            -w /src/VetRIS.Api \
             mcr.microsoft.com/dotnet/sdk:8.0 \
-            bash -c "dotnet tool install --global dotnet-ef && \
-                     export PATH=\"\$PATH:/root/.dotnet/tools\" && \
-                     dotnet ef database update --project ../VetRIS.Infrastructure --startup-project ."
+            bash -c '
+              dotnet tool install --global dotnet-ef &&
+              export PATH="$PATH:/root/.dotnet/tools" &&
+              dotnet ef database update \
+                --project ../VetRIS.Infrastructure \
+                --startup-project .
+            '
 
-      - name: Download current task definition
+      - name: Download current ECS task definition
         run: |
-          aws ecs describe-task-definition --task-definition "$ECS_TASK_FAMILY" \
-            --query taskDefinition > task-definition.json
+          aws ecs describe-task-definition \
+            --task-definition "$ECS_TASK_FAMILY" \
+            --query taskDefinition \
+            --output json > task-definition.json
 
-      - name: Render new task definition with the freshly pushed image
+      - name: Render new ECS task definition
         id: render-task-def
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
@@ -92,7 +97,7 @@ jobs:
           container-name: ${{ env.CONTAINER_NAME }}
           image: ${{ steps.push.outputs.image }}
 
-      - name: Deploy to ECS (register new revision, update service, wait for stable)
+      - name: Deploy to ECS
         uses: aws-actions/amazon-ecs-deploy-task-definition@v2
         with:
           task-definition: ${{ steps.render-task-def.outputs.task-definition }}
@@ -100,14 +105,18 @@ jobs:
           cluster: ${{ env.ECS_CLUSTER }}
           wait-for-service-stability: true
 
-      - name: Smoke test
+      - name: Smoke test API health endpoint
         run: |
           for i in $(seq 1 10); do
-            if curl -sf "https://api.alua2kg.online/api/health"; then
+            if curl --fail --silent --show-error \
+              "https://api.alua2kg.online/api/health"; then
               echo "Smoke test passed."
               exit 0
             fi
+
+            echo "Attempt $i failed. Retrying in 6 seconds..."
             sleep 6
           done
-          echo "::error::Smoke test failed — /api/health never returned 200 after deploy." >&2
+
+          echo "::error::Smoke test failed: API health endpoint did not return HTTP 200."
           exit 1
