@@ -1,0 +1,81 @@
+name: Frontend CI Pipeline
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+    paths:
+      - "frontend/**"
+  workflow_dispatch: {}
+
+jobs:
+  validate-and-test:
+    name: Code Quality & Security Pipeline
+    runs-on: ubuntu-latest
+    
+    # We set default working directory so we don't have to repeat it in every step
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      # ---------------------------------------------------------
+      # PHASE 1: SOURCE & SECURITY (No Node.js needed yet)
+      # ---------------------------------------------------------
+      - name: 📥 Checkout source code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Required to scan the entire commit history for secrets
+
+      - name: 🔐 Security Scan (Gitleaks)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # Why: Scans your code for accidentally committed AWS keys, database passwords, or API tokens before anything else runs.
+
+      # ---------------------------------------------------------
+      # PHASE 2: DEPENDENCY SETUP
+      # ---------------------------------------------------------
+      - name: ⚙️ Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: 📦 Install Dependencies
+        run: npm ci
+        # Why: 'npm ci' is strictly for CI environments. It installs exactly what is in package-lock.json without modifying it, ensuring reproducible builds.
+
+      - name: 🛡️ Dependency Vulnerability Audit
+        run: npm audit --audit-level=high
+        # Why: Checks if any of your open-source npm packages have known high-severity security exploits (CVEs).
+
+      # ---------------------------------------------------------
+      # PHASE 3: STATIC ANALYSIS & CODE QUALITY
+      # ---------------------------------------------------------
+      - name: 🧹 Code Formatting Check (Prettier)
+        run: npx prettier --check "src/**/*.{js,jsx,ts,tsx,css,md}"
+        continue-on-error: true 
+        # Why: Ensures all developers adhere to the same spacing, quote, and formatting rules. (Set to continue-on-error so it warns rather than failing the whole build).
+
+      - name: 🚨 Static Code Analysis (Linting)
+        run: npm run lint
+        # Why: Runs ESLint to catch logical errors, bad practices, unused variables, and potential runtime bugs without executing the code.
+
+      # ---------------------------------------------------------
+      # PHASE 4: TESTING
+      # ---------------------------------------------------------
+      - name: 🧪 Unit & Component Tests
+        run: npm run test -- --run
+        # Why: Executes your automated test suite (Jest or Vitest). The '-- --run' flag ensures test runners like Vitest run once and exit, rather than hanging in "watch" mode.
+
+      # ---------------------------------------------------------
+      # PHASE 5: BUILD VERIFICATION
+      # ---------------------------------------------------------
+      - name: 🏗️ Production Build Verification
+        run: npm run build
+        # Why: Ensures that your React/Vue/Vite application can successfully compile, bundle, and minify into static assets without throwing fatal build errors.
